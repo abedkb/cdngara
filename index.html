@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maendeleo ya Jamii — Vikundi</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f4f6f5; --card:#fff; --ink:#1d2a24; --muted:#64736b; --line:#dfe6e2;
+  --pri:#1f6f4a; --pri-d:#175538; --pri-l:#e6f2ec;
+  --ok:#1f7a45; --ok-l:#e3f4ea; --warn:#9a5b00; --warn-l:#fdf1dc;
+  --info:#1c5d99; --info-l:#e3eefa; --bad:#b3261e; --bad-l:#fbe7e5;
+  --r:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit}
+.btn{border:0;border-radius:8px;padding:9px 14px;background:var(--pri);color:#fff;cursor:pointer;font-weight:600;white-space:nowrap}
+.btn:hover{background:var(--pri-d)}
+.btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.sec:hover{background:var(--pri-l)}
+.btn.bad{background:var(--bad)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.6;cursor:default}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--pri);outline-offset:-1px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.req::after{content:" *";color:var(--bad)}
+
+/* Auth */
+.auth{min-height:100vh;display:grid;place-items:center;padding:16px}
+.auth-box{background:var(--card);border-radius:14px;padding:28px;width:100%;max-width:400px;box-shadow:0 6px 30px rgba(0,0,0,.07)}
+.auth-box h1{font-size:19px;margin:0 0 20px;color:var(--pri)}
+#authView h1{text-align:center;text-transform:uppercase;letter-spacing:.04em;margin-bottom:22px}
+.auth-box p.sub{margin:0 0 20px;color:var(--muted);font-size:13px}
+.seg{display:flex;background:var(--bg);border-radius:8px;padding:3px;margin-bottom:16px}
+.seg button{flex:1;border:0;background:none;padding:8px;border-radius:6px;cursor:pointer;font-weight:600;color:var(--muted)}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.fld{margin-bottom:12px}
+
+/* Shell */
+header{background:var(--pri);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header .t{flex:1;min-width:200px}
+header .t b{display:block;font-size:16px;text-transform:uppercase;letter-spacing:.03em}
+header .t small{opacity:.85;font-size:12px}
+header .u{font-size:13px;text-align:right}
+header .u small{display:block;opacity:.85}
+header .btn{background:rgba(255,255,255,.15)}
+nav{background:#fff;border-bottom:1px solid var(--line);display:flex;gap:4px;padding:0 12px;overflow-x:auto}
+nav button{border:0;background:none;padding:13px 14px;cursor:pointer;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
+nav button.on{color:var(--pri);border-color:var(--pri)}
+main{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
+h2{font-size:18px;margin:0 0 14px}
+h3{font-size:15px;margin:22px 0 10px}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:8px}
+.stat{background:var(--card);border-radius:var(--r);padding:14px 16px;border:1px solid var(--line)}
+.stat small{color:var(--muted);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+.stat b{display:block;font-size:22px;margin-top:4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.toolbar input{flex:1;min-width:200px}
+.toolbar select{width:auto;min-width:150px}
+.tbl{width:100%;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+th{background:#f8faf9;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--pri-l)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tfoot td{font-weight:700;background:#f8faf9}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:12px;font-weight:600}
+.b-ok{background:var(--ok-l);color:var(--ok)}
+.b-warn{background:var(--warn-l);color:var(--warn)}
+.b-info{background:var(--info-l);color:var(--info)}
+.b-bad{background:var(--bad-l);color:var(--bad)}
+.b-mute{background:#eef1ef;color:var(--muted)}
+.b-pend{background:#efe7fb;color:#6b3fb0}
+.cnt{display:inline-block;min-width:20px;padding:1px 6px;border-radius:99px;background:var(--bad);color:#fff;font-size:11px;margin-left:4px;text-align:center}
+.alert{border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:14px}
+.alert.warn{background:var(--warn-l);color:var(--warn)}
+.alert.pend{background:#efe7fb;color:#6b3fb0}
+.alert.bad{background:var(--bad-l);color:var(--bad)}
+
+/* Modal */
+.modal{position:fixed;inset:0;background:rgba(15,25,20,.45);display:flex;align-items:flex-start;justify-content:center;padding:30px 12px;overflow-y:auto;z-index:20}
+.modal-box{background:#fff;border-radius:14px;width:100%;max-width:760px;padding:22px}
+.modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}
+.modal-head h2{margin:0}
+.x{border:0;background:none;font-size:24px;line-height:1;cursor:pointer;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.grid .full{grid-column:1/-1}
+.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 18px;background:#f8faf9;border-radius:var(--r);padding:14px}
+.info small{display:block;color:var(--muted);font-size:12px}
+.info b{font-weight:600}
+.actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+.note{font-size:13px;color:var(--muted)}
+
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(120px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:8px;transition:transform .25s;z-index:50;max-width:90vw}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#toast.err{background:var(--bad)}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:10px}
+
+@media (max-width:600px){
+  header .u{text-align:left}
+  th,td{padding:9px 8px}
+  .hide-sm{display:none}
+}
+@media print{
+  header,nav,.toolbar,.actions,.x,footer,#toast,.no-print{display:none!important}
+  body{background:#fff}
+  .modal{position:static;background:none;padding:0}
+  .modal-box{max-width:none;padding:0}
+  .modal:not([hidden]) ~ * , body:has(.modal:not([hidden])) #appView{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= INGIA / JISAJILI ================= -->
+<section id="authView" class="auth" hidden>
+  <div class="auth-box">
+    <h1>Idara ya Maendeleo ya Jamii</h1>
+    <form id="authForm" onsubmit="authSubmit(event)">
+      <div class="fld"><label class="req">Barua Pepe</label><input name="email" type="email" required autocomplete="username"></div>
+      <div class="fld"><label class="req">Nenosiri</label><input name="password" type="password" required autocomplete="current-password"></div>
+      <button class="btn" style="width:100%" id="authBtn">Ingia</button>
+    </form>
+  </div>
+</section>
+
+<!-- ================= INASUBIRI IDHINI ================= -->
+<section id="pendingView" class="auth" hidden>
+  <div class="auth-box" style="text-align:center">
+    <h1>Hauna Ruhusa ya Mfumo Huu</h1>
+    <p class="sub" style="margin:10px 0 20px">Akaunti yako haijapewa ruhusa ya kutumia mfumo huu, au imesitishwa. Wasiliana na Mkuu wa Idara.</p>
+    <button class="btn sec" onclick="init()">Jaribu Tena</button>
+    <button class="btn" onclick="toka()">Toka</button>
+  </div>
+</section>
+
+<!-- ================= MFUMO ================= -->
+<section id="appView" hidden>
+  <header>
+    <div class="t"><b>Idara ya Maendeleo ya Jamii</b></div>
+    <div class="u"><span id="uName"></span><small id="uRole"></small></div>
+    <button class="btn sm" onclick="formNenosiri()">Badili Nenosiri</button>
+    <button class="btn sm" onclick="toka()">Toka</button>
+  </header>
+  <nav id="nav">
+    <button data-tab="dashibodi" onclick="go('dashibodi')">Dashibodi</button>
+    <button data-tab="vikundi" onclick="go('vikundi')">Vikundi</button>
+    <button data-tab="mikopo" onclick="go('mikopo')">Mikopo</button>
+    <button data-tab="usimamizi" onclick="go('usimamizi')" id="navAdmin" hidden>Usimamizi</button>
+  </nav>
+  <main id="main"></main>
+</section>
+
+<div id="modal" class="modal" hidden onclick="if(event.target===this)closeModal()"><div class="modal-box" id="modalBody"></div></div>
+<div id="toast"></div>
+
+<script>
+/* ===================== MIPANGILIO ===================== */
+const SUPABASE_URL = 'https://vvpdcworhdrwboknncgh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2cGRjd29yaGRyd2Jva25uY2doIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxMTQ5OTIsImV4cCI6MjA4OTY5MDk5Mn0.s63-bYToyRqHNYPIib32Ns8xLK9TmmFhHi4fx7pnAcY';   // Supabase -> Project Settings -> API Keys -> anon public
+
+/* Badala ya ukurasa mtupu, onyesha kosa la mipangilio waziwazi */
+function kosaLaMfumo(ujumbe) {
+  document.body.innerHTML = `<div class="auth"><div class="auth-box"><h1>Mfumo haujaunganishwa</h1>
+    <p class="sub" style="margin-top:10px">${ujumbe}</p></div></div>`;
+}
+let sb;
+try {
+  if (typeof supabase === 'undefined') throw new Error('Maktaba ya Supabase haikupakia. Hakikisha una mtandao kisha fungua upya.');
+  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.startsWith('WEKA')) throw new Error('Anon key ya Supabase haijawekwa kwenye faili (SUPABASE_ANON_KEY).');
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} catch (e) { kosaLaMfumo(e.message); throw e; }
+
+const MAJUKUMU = {
+  mkuu_wa_idara: 'Mkuu wa Idara',
+  mratibu_wa_mikopo: 'Mratibu wa Mikopo',
+  afisa_maendeleo: 'Afisa Maendeleo ya Jamii'
+};
+const MAKUNDI_LENGWA = ['Vijana', 'Wanawake', 'Watu wenye Ulemavu', 'Mchanganyiko'];
+
+let me = null, aina = [], vikundi = [], watumiaji = [], tab = 'dashibodi';
+let fV = { q: '', aina: '', mkopo: '', kata: '' }, fM = { q: '', hali: '' };
+let openKikundiId = null;
+
+/* ===================== VISAIDIZI ===================== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const tsh = n => 'TSh ' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+const nambari = n => Number(n || 0).toLocaleString('en-US');
+const tarehe = d => { if (!d) return '—'; const [y, m, x] = d.slice(0, 10).split('-'); return `${x}/${m}/${y}`; };
+const leo = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const siku = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
+const sum = (arr, f) => arr.reduce((s, x) => s + Number(typeof f === 'function' ? f(x) : x[f] || 0), 0);
+const isMkuu = () => me?.jukumu === 'mkuu_wa_idara';
+const isMratibu = () => me?.jukumu === 'mratibu_wa_mikopo';
+const isAfisa = () => me?.jukumu === 'afisa_maendeleo';
+const canKikundi = () => isMratibu() || isAfisa();   // kusajili / kuhariri vikundi
+const canLoan = () => isMratibu() || isAfisa();      // kuingiza / kuhariri mikopo
+const jinaLa = uid => { const w = watumiaji.find(x => x.id === uid); return w ? (w.jina_kamili || w.email) : '—'; };
+
+function ongezaMiezi(d, n) {
+  const [y, m, x] = d.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1 + Number(n), x));
+  return dt.toISOString().slice(0, 10);
+}
+function toast(msg, err) {
+  const t = $('toast'); t.textContent = msg; t.className = 'show' + (err ? ' err' : '');
+  clearTimeout(t._t); t._t = setTimeout(() => t.className = '', 3500);
+}
+function kosa(e) {
+  if (!e) return 'Hitilafu imetokea';
+  if (e.code === '23505') return 'Namba hii ya usajili tayari imesajiliwa kwa kikundi kingine.';
+  if (e.code === '42501') return 'Huna ruhusa ya kufanya kitendo hiki.';
+  if (e.code === '23514') return 'Taarifa ulizoingiza haziendani (angalia idadi au tarehe).';
+  if (/Invalid login/i.test(e.message)) return 'Barua pepe au nenosiri si sahihi.';
+  return e.message || 'Hitilafu imetokea';
+}
+function soma(form) {
+  const o = {};
+  new FormData(form).forEach((v, k) => { v = String(v).trim(); o[k] = v === '' ? null : v; });
+  return o;
+}
+function busy(btn, on) { if (!btn) return; btn.disabled = on; if (on) { btn._t = btn.textContent; btn.textContent = 'Subiri...'; } else if (btn._t) btn.textContent = btn._t; }
+function pakuaCSV(jina, header, rows) {
+  const csv = [header, ...rows].map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `${jina}_${leo()}.csv`; a.click();
+}
+
+/* Hali ya mkopo — mikopo isiyoidhinishwa haihesabiwi kwenye takwimu */
+const imeidhinishwa = m => m.idhini === 'Imeidhinishwa';
+function haliMkopo(m) {
+  if (m.idhini === 'Inasubiri') return { t: 'Inasubiri Idhini', c: 'b-pend', k: 'inasubiri' };
+  if (m.idhini === 'Imekataliwa') return { t: 'Imekataliwa', c: 'b-bad', k: 'imekataliwa' };
+  if (m.hali === 'Imelipwa Yote') return { t: 'Imelipwa Yote', c: 'b-ok', k: 'imelipwa' };
+  if (m.tarehe_ya_kuanza_kulipa > leo()) return { t: 'Kipindi cha Neema', c: 'b-info', k: 'neema' };
+  return { t: 'Inalipwa', c: 'b-warn', k: 'inalipwa' };
+}
+const badge = h => `<span class="badge ${h.c}">${h.t}</span>`;
+const mkopoHai = k => k.mikopo.find(m => imeidhinishwa(m) && m.hali === 'Inaendelea');
+const mahali = k => {
+  const kata = (k.kata || '').trim(), mtaa = (k.mtaa || '').trim();
+  if (!kata && !mtaa) return '<span class="note">—</span>';
+  return `<b>${esc(kata || '—')}</b>${mtaa ? `<br><small class="note">${esc(mtaa)}</small>` : ''}`;
+};
+const mkopoUnasubiri = k => k.mikopo.find(m => m.idhini === 'Inasubiri');
+const mikopoIliyoidhinishwa = () => vikundi.flatMap(k => k.mikopo.filter(imeidhinishwa).map(m => ({ ...m, k })));
+const mikopoInayosubiri = () => vikundi.flatMap(k => k.mikopo.filter(m => m.idhini === 'Inasubiri').map(m => ({ ...m, k })));
+
+/* ===================== AUTH ===================== */
+/* Akaunti zinaundwa na Mkuu wa Idara (au moja kwa moja kwenye database) — hakuna kujisajili */
+async function authSubmit(e) {
+  e.preventDefault();
+  const f = soma(e.target), btn = $('authBtn');
+  busy(btn, true);
+  try {
+    const { error } = await sb.auth.signInWithPassword({ email: f.email, password: f.password });
+    if (error) throw error;
+    await init();
+  } catch (err) { toast(kosa(err), 1); }
+  finally { busy(btn, false); }
+}
+
+/* Mtumiaji kubadili nenosiri lake mwenyewe */
+function formNenosiri() {
+  openModal(`
+    <div class="modal-head"><h2>Badili Nenosiri</h2><button class="x" onclick="closeModal()">&times;</button></div>
+    <form onsubmit="hifadhiNenosiri(event)" style="max-width:380px">
+      <div class="fld"><label class="req">Nenosiri Jipya</label><input name="p1" type="password" minlength="8" required autocomplete="new-password"></div>
+      <div class="fld"><label class="req">Rudia Nenosiri Jipya</label><input name="p2" type="password" minlength="8" required autocomplete="new-password"></div>
+      <p class="note">Angalau herufi 8.</p>
+      <div class="actions"><button type="button" class="btn sec" onclick="closeModal()">Ghairi</button><button class="btn">Hifadhi</button></div>
+    </form>`);
+}
+async function hifadhiNenosiri(e) {
+  e.preventDefault();
+  const { p1, p2 } = soma(e.target), btn = e.submitter;
+  if (p1 !== p2) return toast('Manenosiri hayafanani.', 1);
+  busy(btn, true);
+  const { error } = await sb.auth.updateUser({ password: p1 });
+  busy(btn, false);
+  if (error) return toast(kosa(error), 1);
+  toast('Nenosiri limebadilishwa'); closeModal();
+}
+async function toka() { await sb.auth.signOut(); me = null; closeModal(); show('authView'); }
+
+function show(v) { ['authView', 'pendingView', 'appView'].forEach(x => $(x).hidden = x !== v); }
+
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return show('authView');
+  const { data: p, error } = await sb.from('mj_watumiaji').select('*').eq('id', session.user.id).maybeSingle();
+  if (error) { toast(kosa(error), 1); return show('authView'); }
+  me = p;
+  if (!p || !p.ameidhinishwa) return show('pendingView');
+  $('uName').textContent = p.jina_kamili || p.email;
+  $('uRole').textContent = MAJUKUMU[p.jukumu];
+  $('navAdmin').hidden = !isMkuu();
+  show('appView');
+  await loadAll();
+  go(tab === 'usimamizi' && !isMkuu() ? 'dashibodi' : tab);
+}
+
+async function loadAll() {
+  const [a, v, w] = await Promise.all([
+    sb.from('mj_aina').select('*').order('jina'),
+    sb.from('mj_vikundi').select('*, aina:mj_aina(jina), mikopo:mj_mikopo(*)').order('jina'),
+    sb.from('mj_watumiaji').select('*').order('created_at')
+  ]);
+  if (a.error || v.error) { toast(kosa(a.error || v.error), 1); return; }
+  aina = a.data;
+  vikundi = v.data.map(k => ({ ...k, mikopo: (k.mikopo || []).sort((x, y) => y.tarehe_ya_kuchukua.localeCompare(x.tarehe_ya_kuchukua)) }));
+  watumiaji = w.data || [];
+}
+
+function go(t) {
+  tab = t;
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  const n = mikopoInayosubiri().length;
+  document.querySelector('#nav [data-tab="mikopo"]').innerHTML = 'Mikopo' + (n && isMratibu() ? `<span class="cnt">${n}</span>` : '');
+  ({ dashibodi: renderDashibodi, vikundi: renderVikundi, mikopo: renderMikopo, usimamizi: renderUsimamizi })[t]();
+}
+
+/* ===================== DASHIBODI ===================== */
+function renderDashibodi() {
+  const mikopo = mikopoIliyoidhinishwa();
+  const hai = mikopo.filter(m => m.hali === 'Inaendelea');
+  const wanasubiri = mikopoInayosubiri();
+  const wenyeMkopo = vikundi.filter(mkopoHai).length;
+  const t = leo();
+  const zijazo = hai.filter(m => m.tarehe_ya_kuanza_kulipa >= t && siku(t, m.tarehe_ya_kuanza_kulipa) <= 30)
+    .sort((a, b) => a.tarehe_ya_kuanza_kulipa.localeCompare(b.tarehe_ya_kuanza_kulipa));
+
+  const safu = aina.map(a => {
+    const ks = vikundi.filter(k => k.aina_id === a.id);
+    const ms = ks.flatMap(k => k.mikopo.filter(imeidhinishwa));
+    return `<tr class="click" onclick="fV={q:'',aina:'${a.id}',mkopo:'',kata:''};go('vikundi')">
+      <td>${esc(a.jina)}</td><td class="num">${ks.length}</td>
+      <td class="num">${nambari(sum(ks, 'idadi_ya_wanachama'))}</td>
+      <td class="num">${ks.filter(mkopoHai).length}</td>
+      <td class="num">${tsh(sum(ms, 'kiasi'))}</td></tr>`;
+  }).join('');
+
+  $('main').innerHTML = `
+    <h2>Muhtasari</h2>
+    ${wanasubiri.length ? `<div class="alert pend" style="cursor:pointer" onclick="fM={q:'',hali:'inasubiri'};go('mikopo')">
+      Mikopo <b>${wanasubiri.length}</b> (${tsh(sum(wanasubiri, 'kiasi'))}) inasubiri idhini ya Mratibu wa Mikopo.
+      ${isMratibu() ? '<b>Bofya hapa kuipitia →</b>' : 'Haijahesabiwa kwenye takwimu hizi.'}</div>` : ''}
+    <div class="stats">
+      <div class="stat"><small>Vikundi Vyote</small><b>${nambari(vikundi.length)}</b></div>
+      <div class="stat"><small>Jumla ya Wanachama</small><b>${nambari(sum(vikundi, 'idadi_ya_wanachama'))}</b></div>
+      <div class="stat"><small>Vikundi Vyenye Mkopo</small><b>${nambari(wenyeMkopo)}</b></div>
+      <div class="stat"><small>Mikopo Iliyotolewa</small><b>${tsh(sum(mikopo, 'kiasi'))}</b></div>
+      <div class="stat"><small>Mikopo Inayoendelea</small><b>${tsh(sum(hai, 'kiasi'))}</b></div>
+    </div>
+
+    <h3>Kwa Aina ya Kikundi</h3>
+    <div class="card tbl"><table>
+      <thead><tr><th>Aina</th><th class="num">Vikundi</th><th class="num">Wanachama</th><th class="num">Wenye Mkopo</th><th class="num">Kiasi cha Mikopo</th></tr></thead>
+      <tbody>${safu || '<tr><td colspan="5" class="empty">Hakuna aina zilizosajiliwa</td></tr>'}</tbody>
+      <tfoot><tr><td>Jumla</td><td class="num">${vikundi.length}</td><td class="num">${nambari(sum(vikundi, 'idadi_ya_wanachama'))}</td><td class="num">${wenyeMkopo}</td><td class="num">${tsh(sum(mikopo, 'kiasi'))}</td></tr></tfoot>
+    </table></div>
+
+    <h3>Mikopo Inayoanza Kulipwa Ndani ya Siku 30</h3>
+    <div class="card tbl"><table>
+      <thead><tr><th>Kikundi</th><th>Aina</th><th class="num">Kiasi</th><th>Kuanza Kulipa</th><th class="num">Siku Zilizobaki</th></tr></thead>
+      <tbody>${zijazo.map(m => `<tr class="click" onclick="openKikundi('${m.k.id}')">
+        <td>${esc(m.k.jina)}</td><td>${esc(m.k.aina?.jina)}</td><td class="num">${tsh(m.kiasi)}</td>
+        <td>${tarehe(m.tarehe_ya_kuanza_kulipa)}</td><td class="num">${siku(t, m.tarehe_ya_kuanza_kulipa)}</td></tr>`).join('')
+      || '<tr><td colspan="5" class="empty">Hakuna mkopo unaoanza kulipwa siku 30 zijazo</td></tr>'}</tbody>
+    </table></div>`;
+}
+
+/* ===================== VIKUNDI ===================== */
+function renderVikundi() {
+  $('main').innerHTML = `
+    <div class="toolbar">
+      <input id="vq" placeholder="Tafuta jina, namba ya usajili, mwenyekiti, kata/eneo..." value="${esc(fV.q)}" oninput="fV.q=this.value;listVikundi()">
+      <select onchange="fV.aina=this.value;listVikundi()">
+        <option value="">Aina zote</option>
+        ${aina.map(a => `<option value="${a.id}" ${String(a.id) === String(fV.aina) ? 'selected' : ''}>${esc(a.jina)}</option>`).join('')}
+      </select>
+      <select onchange="fV.mkopo=this.value;listVikundi()">
+        <option value="">Mkopo: Wote</option>
+        <option value="ndio" ${fV.mkopo === 'ndio' ? 'selected' : ''}>Wenye mkopo unaoendelea</option>
+        <option value="hapana" ${fV.mkopo === 'hapana' ? 'selected' : ''}>Wasio na mkopo</option>
+      </select>
+      <select onchange="fV.kata=this.value;listVikundi()">
+        <option value="">Kata/Eneo zote</option>
+        ${[...new Set(vikundi.map(k => (k.kata || '').trim()).filter(Boolean))].sort()
+          .map(x => `<option ${x === fV.kata ? 'selected' : ''}>${esc(x)}</option>`).join('')}
+      </select>
+      <button class="btn sec" onclick="csvVikundi()">Pakua CSV</button>
+      ${canKikundi() ? '<button class="btn" onclick="formKikundi()">+ Sajili Kikundi</button>' : ''}
+    </div>
+    <div id="vList"></div>`;
+  listVikundi();
+}
+function vikundiVilivyochujwa() {
+  const q = fV.q.toLowerCase();
+  return vikundi.filter(k =>
+    (!fV.aina || String(k.aina_id) === String(fV.aina)) &&
+    (!fV.kata || (k.kata || '').trim() === fV.kata) &&
+    (!fV.mkopo || (fV.mkopo === 'ndio') === !!mkopoHai(k)) &&
+    (!q || [k.jina, k.namba_ya_usajili, k.mwenyekiti, k.kata, k.mtaa].some(x => (x || '').toLowerCase().includes(q))));
+}
+function listVikundi() {
+  const ls = vikundiVilivyochujwa();
+  $('vList').innerHTML = `<p class="note">Vikundi ${ls.length} · Wanachama ${nambari(sum(ls, 'idadi_ya_wanachama'))}</p>
+  <div class="card tbl"><table>
+    <thead><tr><th>Namba ya Usajili</th><th>Jina la Kikundi</th><th class="hide-sm">Aina</th><th class="num">Wanachama</th><th>Mahali (Kata/Eneo, Mtaa)</th><th>Mkopo</th></tr></thead>
+    <tbody>${ls.map(k => {
+      const m = mkopoHai(k) || mkopoUnasubiri(k);
+      return `<tr class="click" onclick="openKikundi('${k.id}')">
+        <td>${esc(k.namba_ya_usajili)}</td>
+        <td><b>${esc(k.jina)}</b>${k.hali !== 'Hai' ? ' <span class="badge b-mute">Kimesitishwa</span>' : ''}</td>
+        <td class="hide-sm">${esc(k.aina?.jina)}</td>
+        <td class="num">${nambari(k.idadi_ya_wanachama)}</td>
+        <td>${mahali(k)}</td>
+        <td>${m ? `${badge(haliMkopo(m))}<br><small class="note">${tsh(m.kiasi)}</small>` : '<span class="badge b-mute">Hakuna</span>'}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="6" class="empty">Hakuna kikundi kilichopatikana</td></tr>'}</tbody>
+  </table></div>`;
+}
+function csvVikundi() {
+  const ls = vikundiVilivyochujwa();
+  pakuaCSV('vikundi', ['Namba ya Usajili', 'Jina', 'Aina', 'Idadi ya Wanachama', 'Wanaume', 'Wanawake', 'Walemavu', 'Kundi Lengwa', 'Kata/Eneo', 'Mtaa', 'Mwenyekiti', 'Simu', 'Tarehe ya Usajili', 'Hali', 'Mkopo (Kiasi)', 'Tarehe ya Kuchukua', 'Tarehe ya Kuanza Kulipa'],
+    ls.map(k => { const m = mkopoHai(k); return [k.namba_ya_usajili, k.jina, k.aina?.jina, k.idadi_ya_wanachama, k.wanaume, k.wanawake, k.walemavu, k.kundi_lengwa, k.kata, k.mtaa, k.mwenyekiti, k.simu_ya_mwenyekiti, tarehe(k.tarehe_ya_usajili), k.hali, m?.kiasi, m && tarehe(m.tarehe_ya_kuchukua), m && tarehe(m.tarehe_ya_kuanza_kulipa)]; }));
+}
+
+/* ----- Fomu ya kikundi ----- */
+function formKikundi(id) {
+  const k = vikundi.find(x => x.id === id) || {};
+  const v = f => esc(k[f] ?? '');
+  openModal(`
+    <div class="modal-head"><h2>${id ? 'Hariri Kikundi' : 'Sajili Kikundi Kipya'}</h2><button class="x" onclick="${id ? `openKikundi('${id}')` : 'closeModal()'}">&times;</button></div>
+    <form onsubmit="saveKikundi(event,'${id || ''}')">
+      <div class="grid">
+        <div class="full"><label class="req">Jina la Kikundi</label><input name="jina" required value="${v('jina')}"></div>
+        <div><label class="req">Namba ya Usajili</label><input name="namba_ya_usajili" required value="${v('namba_ya_usajili')}"></div>
+        <div><label class="req">Aina ya Kikundi</label><select name="aina_id" required>
+          <option value="">— Chagua —</option>
+          ${aina.map(a => `<option value="${a.id}" ${a.id === k.aina_id ? 'selected' : ''}>${esc(a.jina)}</option>`).join('')}
+        </select></div>
+        <div><label class="req">Idadi ya Wanachama</label><input name="idadi_ya_wanachama" type="number" min="0" required value="${v('idadi_ya_wanachama')}"></div>
+        <div><label>Tarehe ya Usajili</label><input name="tarehe_ya_usajili" type="date" value="${v('tarehe_ya_usajili')}"></div>
+        <div><label>Wanaume</label><input name="wanaume" type="number" min="0" value="${v('wanaume')}"></div>
+        <div><label>Wanawake</label><input name="wanawake" type="number" min="0" value="${v('wanawake')}"></div>
+        <div><label>Watu wenye Ulemavu</label><input name="walemavu" type="number" min="0" value="${v('walemavu')}"></div>
+        <div><label>Kundi Lengwa</label><select name="kundi_lengwa">
+          <option value="">—</option>
+          ${MAKUNDI_LENGWA.map(x => `<option ${x === k.kundi_lengwa ? 'selected' : ''}>${x}</option>`).join('')}
+        </select></div>
+        <div><label>Kata/Eneo</label><input name="kata" value="${v('kata')}"></div>
+        <div><label>Mtaa / Kijiji</label><input name="mtaa" value="${v('mtaa')}"></div>
+        <div><label>Mwenyekiti</label><input name="mwenyekiti" value="${v('mwenyekiti')}"></div>
+        <div><label>Simu ya Mwenyekiti</label><input name="simu_ya_mwenyekiti" value="${v('simu_ya_mwenyekiti')}" placeholder="07XXXXXXXX"></div>
+        <div><label>Hali</label><select name="hali">
+          <option ${k.hali !== 'Kimesitishwa' ? 'selected' : ''}>Hai</option>
+          <option ${k.hali === 'Kimesitishwa' ? 'selected' : ''}>Kimesitishwa</option>
+        </select></div>
+        <div class="full"><label>Maelezo</label><textarea name="maelezo" rows="2">${v('maelezo')}</textarea></div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn sec" onclick="${id ? `openKikundi('${id}')` : 'closeModal()'}">Ghairi</button>
+        <button class="btn">Hifadhi</button>
+      </div>
+    </form>`);
+}
+async function saveKikundi(e, id) {
+  e.preventDefault();
+  const d = soma(e.target), btn = e.submitter;
+  ['aina_id', 'idadi_ya_wanachama', 'wanaume', 'wanawake', 'walemavu'].forEach(f => { if (d[f] !== null) d[f] = parseInt(d[f], 10); });
+  if (d.wanaume !== null && d.wanawake !== null && d.wanaume + d.wanawake !== d.idadi_ya_wanachama)
+    return toast('Wanaume + Wanawake lazima walingane na Idadi ya Wanachama.', 1);
+  if ((d.wanaume || 0) + (d.wanawake || 0) > d.idadi_ya_wanachama)
+    return toast('Wanaume/Wanawake wamezidi Idadi ya Wanachama.', 1);
+  if ((d.walemavu || 0) > d.idadi_ya_wanachama) return toast('Watu wenye ulemavu wamezidi idadi ya wanachama.', 1);
+  busy(btn, true);
+  const q = id ? sb.from('mj_vikundi').update(d).eq('id', id).select().single()
+               : sb.from('mj_vikundi').insert(d).select().single();
+  const { data, error } = await q;
+  busy(btn, false);
+  if (error) return toast(kosa(error), 1);
+  toast(id ? 'Taarifa za kikundi zimehifadhiwa' : 'Kikundi kimesajiliwa');
+  await loadAll(); go(tab); openKikundi(data.id);
+}
+async function futaKikundi(id) {
+  const k = vikundi.find(x => x.id === id);
+  if (!confirm(`Futa kikundi "${k.jina}" pamoja na mikopo yake yote? Kitendo hiki hakirudishwi.`)) return;
+  const { error } = await sb.from('mj_vikundi').delete().eq('id', id);
+  if (error) return toast(kosa(error), 1);
+  toast('Kikundi kimefutwa'); closeModal(); await loadAll(); go(tab);
+}
+
+/* ----- Taarifa za kikundi ----- */
+function openKikundi(id) {
+  const k = vikundi.find(x => x.id === id);
+  if (!k) return closeModal();
+  openKikundiId = id;
+  const i = (l, val) => `<div><small>${l}</small><b>${val ?? '—'}</b></div>`;
+  const ms = k.mikopo;
+  openModal(`
+    <div class="modal-head">
+      <div><h2>${esc(k.jina)}</h2><span class="note">${esc(k.aina?.jina)} · ${esc(k.namba_ya_usajili)}</span></div>
+      <button class="x" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="info">
+      ${i('Namba ya Usajili', esc(k.namba_ya_usajili))}
+      ${i('Aina', esc(k.aina?.jina))}
+      ${i('Idadi ya Wanachama', nambari(k.idadi_ya_wanachama))}
+      ${i('Wanaume / Wanawake', (k.wanaume ?? '—') + ' / ' + (k.wanawake ?? '—'))}
+      ${i('Watu wenye Ulemavu', k.walemavu ?? '—')}
+      ${i('Kundi Lengwa', esc(k.kundi_lengwa || '—'))}
+      ${i('Kata/Eneo, Mtaa', esc([k.kata, k.mtaa].filter(Boolean).join(', ') || '—'))}
+      ${i('Mwenyekiti', esc(k.mwenyekiti || '—') + (k.simu_ya_mwenyekiti ? `<br><small>${esc(k.simu_ya_mwenyekiti)}</small>` : ''))}
+      ${i('Tarehe ya Usajili', tarehe(k.tarehe_ya_usajili))}
+      ${i('Hali', k.hali === 'Hai' ? '<span class="badge b-ok">Hai</span>' : '<span class="badge b-mute">Kimesitishwa</span>')}
+      ${k.maelezo ? `<div style="grid-column:1/-1"><small>Maelezo</small>${esc(k.maelezo)}</div>` : ''}
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:22px">
+      <h3 style="margin:0">Mikopo (${ms.length})</h3>
+      ${canLoan() ? `<button class="btn sm no-print" onclick="formMkopo('${k.id}')">+ Ongeza Mkopo</button>` : ''}
+    </div>
+    ${ms.length ? `<div class="tbl" style="margin-top:10px"><table>
+      <thead><tr><th>Tarehe ya Kuchukua</th><th class="num">Kiasi</th><th>Kuanza Kulipa</th><th class="hide-sm">Mwisho</th><th>Hali</th><th class="no-print"></th></tr></thead>
+      <tbody>${ms.map(m => `<tr>
+        <td>${tarehe(m.tarehe_ya_kuchukua)}</td>
+        <td class="num">${tsh(m.kiasi)}</td>
+        <td>${tarehe(m.tarehe_ya_kuanza_kulipa)}</td>
+        <td class="hide-sm">${m.muda_wa_marejesho_miezi ? tarehe(ongezaMiezi(m.tarehe_ya_kuanza_kulipa, m.muda_wa_marejesho_miezi)) + `<br><small class="note">miezi ${m.muda_wa_marejesho_miezi}</small>` : '—'}</td>
+        <td>${badge(haliMkopo(m))}</td>
+        <td class="no-print" style="white-space:nowrap">${vitufeMkopo(m, k.id)}</td>
+      </tr>
+      <tr><td colspan="6" class="note" style="border-top:0;padding-top:0">${maelezoIdhini(m)}${m.maelezo ? ' · ' + esc(m.maelezo) : ''}</td></tr>`).join('')}</tbody>
+    </table></div>` : '<p class="note">Kikundi hiki hakina mkopo uliorekodiwa.</p>'}
+
+    <div class="actions">
+      ${isMkuu() ? `<button class="btn bad" onclick="futaKikundi('${k.id}')">Futa</button>` : ''}
+      <button class="btn sec" onclick="window.print()">Chapisha</button>
+      ${canKikundi() ? `<button class="btn" onclick="formKikundi('${k.id}')">Hariri Taarifa</button>` : ''}
+    </div>`);
+}
+
+/* Vitufe na maelezo ya idhini kwa kila mkopo */
+function vitufeMkopo(m, kid) {
+  let h = '';
+  if (isMratibu() && m.idhini !== 'Imeidhinishwa')
+    h += `<button class="btn sm" onclick="idhinisha('${m.id}','${kid}')">Idhinisha</button> `;
+  if (isMratibu() && m.idhini === 'Inasubiri')
+    h += `<button class="btn bad sm" onclick="kataa('${m.id}','${kid}')">Kataa</button> `;
+  if (canLoan()) h += `<button class="btn sec sm" onclick="formMkopo('${kid}','${m.id}')">Hariri</button>`;
+  if (isMkuu()) h += `<button class="btn sec sm" onclick="futaMkopo('${kid}','${m.id}')">Futa</button>`;
+  return h;
+}
+function maelezoIdhini(m) {
+  let s = `Imewasilishwa na ${esc(jinaLa(m.created_by))}`;
+  if (m.idhini === 'Imeidhinishwa' && m.idhinishwa_na) s += ` · Imeidhinishwa na ${esc(jinaLa(m.idhinishwa_na))} (${tarehe(m.tarehe_ya_idhini)})`;
+  if (m.idhini === 'Imekataliwa') s += ` · <span style="color:var(--bad)">Imekataliwa na ${esc(jinaLa(m.idhinishwa_na))}: ${esc(m.sababu_ya_kukataa)}</span>`;
+  return s;
+}
+async function idhinisha(mid, kid) {
+  if (!confirm('Idhinisha mkopo huu?')) return;
+  const { error } = await sb.from('mj_mikopo').update({ idhini: 'Imeidhinishwa' }).eq('id', mid);
+  if (error) return toast(kosa(error), 1);
+  toast('Mkopo umeidhinishwa'); await baadaYaMkopo(kid);
+}
+async function kataa(mid, kid) {
+  const sababu = prompt('Andika sababu ya kukataa mkopo huu (Afisa ataiona):');
+  if (sababu === null) return;
+  if (!sababu.trim()) return toast('Sababu ya kukataa inahitajika.', 1);
+  const { error } = await sb.from('mj_mikopo').update({ idhini: 'Imekataliwa', sababu_ya_kukataa: sababu.trim() }).eq('id', mid);
+  if (error) return toast(kosa(error), 1);
+  toast('Mkopo umekataliwa'); await baadaYaMkopo(kid);
+}
+async function baadaYaMkopo(kid) {
+  const detailWazi = !$('modal').hidden && openKikundiId;
+  await loadAll(); go(tab);
+  if (kid && detailWazi) openKikundi(kid);
+}
+
+/* ----- Fomu ya mkopo ----- */
+function formMkopo(kid, mid) {
+  const k = vikundi.find(x => x.id === kid);
+  const m = mid ? k.mikopo.find(x => x.id === mid) : {};
+  const v = f => esc(m[f] ?? '');
+  const hai = mkopoHai(k);
+  openModal(`
+    <div class="modal-head"><div><h2>${mid ? 'Hariri Mkopo' : 'Ongeza Mkopo'}</h2><span class="note">${esc(k.jina)} · ${esc(k.namba_ya_usajili)}</span></div>
+      <button class="x" onclick="openKikundi('${kid}')">&times;</button></div>
+    ${!mid && hai ? `<div class="alert warn">Kikundi hiki tayari kina mkopo unaoendelea wa ${tsh(hai.kiasi)}.</div>` : ''}
+    ${!mid && mkopoUnasubiri(k) ? `<div class="alert pend">Kikundi hiki tayari kina mkopo wa ${tsh(mkopoUnasubiri(k).kiasi)} unaosubiri idhini.</div>` : ''}
+    ${mid && m.idhini === 'Imekataliwa' ? `<div class="alert bad">Mkopo huu ulikataliwa: ${esc(m.sababu_ya_kukataa)}</div>` : ''}
+    ${isAfisa() ? `<div class="alert pend">${mid && m.idhini === 'Imeidhinishwa'
+        ? 'Mkopo huu tayari umeidhinishwa. Ukiuhariri, utarudi kusubiri idhini ya Mratibu wa Mikopo na hautahesabiwa kwenye takwimu hadi uidhinishwe tena.'
+        : 'Mkopo huu utawasilishwa kwa Mratibu wa Mikopo kwa idhini.'}</div>` : ''}
+    <form onsubmit="saveMkopo(event,'${kid}','${mid || ''}')">
+      <div class="grid">
+        <div><label class="req">Tarehe ya Kuchukua Mkopo</label><input name="tarehe_ya_kuchukua" type="date" required value="${v('tarehe_ya_kuchukua')}"></div>
+        <div><label class="req">Kiasi cha Mkopo (TSh)</label><input name="kiasi" type="number" min="1" step="1" required value="${m.kiasi != null ? Math.round(m.kiasi) : ''}"></div>
+        <div><label class="req">Tarehe ya Kuanza Kulipa</label><input name="tarehe_ya_kuanza_kulipa" type="date" required value="${v('tarehe_ya_kuanza_kulipa')}"></div>
+        <div><label>Muda wa Marejesho (Miezi)</label><input name="muda_wa_marejesho_miezi" type="number" min="1" value="${v('muda_wa_marejesho_miezi')}"></div>
+        ${mid ? `<div><label>Hali</label><select name="hali">
+          <option ${m.hali === 'Inaendelea' ? 'selected' : ''}>Inaendelea</option>
+          <option ${m.hali === 'Imelipwa Yote' ? 'selected' : ''}>Imelipwa Yote</option></select></div>` : ''}
+        <div class="full"><label>Maelezo</label><textarea name="maelezo" rows="2">${v('maelezo')}</textarea></div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn sec" onclick="openKikundi('${kid}')">Ghairi</button>
+        <button class="btn">${isAfisa() ? 'Wasilisha kwa Idhini' : 'Hifadhi'}</button>
+      </div>
+    </form>`);
+}
+async function saveMkopo(e, kid, mid) {
+  e.preventDefault();
+  const d = soma(e.target), btn = e.submitter;
+  d.kiasi = Number(d.kiasi);
+  if (d.muda_wa_marejesho_miezi !== null) d.muda_wa_marejesho_miezi = parseInt(d.muda_wa_marejesho_miezi, 10);
+  if (d.tarehe_ya_kuanza_kulipa < d.tarehe_ya_kuchukua)
+    return toast('Tarehe ya kuanza kulipa haiwezi kuwa kabla ya tarehe ya kuchukua mkopo.', 1);
+  busy(btn, true);
+  const { error } = mid ? await sb.from('mj_mikopo').update(d).eq('id', mid)
+                        : await sb.from('mj_mikopo').insert({ ...d, kikundi_id: kid });
+  busy(btn, false);
+  if (error) return toast(kosa(error), 1);
+  toast(isAfisa() ? 'Mkopo umewasilishwa — unasubiri idhini ya Mratibu' : 'Taarifa za mkopo zimehifadhiwa');
+  await loadAll(); go(tab); openKikundi(kid);
+}
+async function futaMkopo(kid, mid) {
+  if (!confirm('Futa mkopo huu? Kitendo hiki hakirudishwi.')) return;
+  const { error } = await sb.from('mj_mikopo').delete().eq('id', mid);
+  if (error) return toast(kosa(error), 1);
+  toast('Mkopo umefutwa'); await loadAll(); go(tab); openKikundi(kid);
+}
+
+/* ===================== MIKOPO ===================== */
+function renderMikopo() {
+  const sub = mikopoInayosubiri().sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const foleni = isMratibu() && sub.length ? `
+    <h2>Mikopo Inayosubiri Idhini Yako <span class="cnt">${sub.length}</span></h2>
+    <div class="card tbl" style="margin-bottom:22px"><table>
+      <thead><tr><th>Kikundi</th><th class="num">Kiasi</th><th>Kuchukua</th><th>Kuanza Kulipa</th><th class="hide-sm">Imewasilishwa na</th><th></th></tr></thead>
+      <tbody>${sub.map(m => `<tr>
+        <td><a href="#" onclick="openKikundi('${m.k.id}');return false"><b>${esc(m.k.jina)}</b></a><br><small class="note">${esc(m.k.namba_ya_usajili)} · wanachama ${m.k.idadi_ya_wanachama}</small></td>
+        <td class="num">${tsh(m.kiasi)}</td>
+        <td>${tarehe(m.tarehe_ya_kuchukua)}</td>
+        <td>${tarehe(m.tarehe_ya_kuanza_kulipa)}</td>
+        <td class="hide-sm">${esc(jinaLa(m.created_by))}<br><small class="note">${tarehe(m.updated_at)}</small></td>
+        <td style="white-space:nowrap"><button class="btn sm" onclick="idhinisha('${m.id}')">Idhinisha</button>
+          <button class="btn bad sm" onclick="kataa('${m.id}')">Kataa</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+    <h2>Mikopo Yote</h2>` : '';
+  $('main').innerHTML = `${foleni}
+    <div class="toolbar">
+      <input placeholder="Tafuta kikundi au namba ya usajili..." value="${esc(fM.q)}" oninput="fM.q=this.value;listMikopo()">
+      <select onchange="fM.hali=this.value;listMikopo()">
+        <option value="">Hali zote</option>
+        ${[['inasubiri', 'Inasubiri Idhini'], ['neema', 'Kipindi cha Neema'], ['inalipwa', 'Inalipwa'], ['imelipwa', 'Imelipwa Yote'], ['imekataliwa', 'Imekataliwa']]
+          .map(([v, l]) => `<option value="${v}" ${fM.hali === v ? 'selected' : ''}>${l}</option>`).join('')}
+      </select>
+      <button class="btn sec" onclick="csvMikopo()">Pakua CSV</button>
+    </div>
+    <div id="mList"></div>`;
+  listMikopo();
+}
+function mikopoIliyochujwa() {
+  const q = fM.q.toLowerCase();
+  return vikundi.flatMap(k => k.mikopo.map(m => ({ ...m, k })))
+    .filter(m => (!fM.hali || haliMkopo(m).k === fM.hali) &&
+      (!q || [m.k.jina, m.k.namba_ya_usajili].some(x => (x || '').toLowerCase().includes(q))))
+    .sort((a, b) => b.tarehe_ya_kuchukua.localeCompare(a.tarehe_ya_kuchukua));
+}
+function listMikopo() {
+  const ls = mikopoIliyochujwa();
+  const jumla = sum(ls.filter(imeidhinishwa), 'kiasi');
+  $('mList').innerHTML = `<p class="note">Mikopo ${ls.length} · Jumla iliyoidhinishwa ${tsh(jumla)}</p>
+  <div class="card tbl"><table>
+    <thead><tr><th>Kikundi</th><th class="hide-sm">Aina</th><th>Tarehe ya Kuchukua</th><th class="num">Kiasi</th><th>Kuanza Kulipa</th><th>Hali</th></tr></thead>
+    <tbody>${ls.map(m => `<tr class="click" onclick="openKikundi('${m.k.id}')">
+      <td><b>${esc(m.k.jina)}</b><br><small class="note">${esc(m.k.namba_ya_usajili)}${m.k.kata ? " · " + esc(m.k.kata) : ""}</small></td>
+      <td class="hide-sm">${esc(m.k.aina?.jina)}</td>
+      <td>${tarehe(m.tarehe_ya_kuchukua)}</td>
+      <td class="num">${tsh(m.kiasi)}</td>
+      <td>${tarehe(m.tarehe_ya_kuanza_kulipa)}</td>
+      <td>${badge(haliMkopo(m))}</td></tr>`).join('')
+    || '<tr><td colspan="6" class="empty">Hakuna mkopo uliopatikana</td></tr>'}</tbody>
+    ${ls.length ? `<tfoot><tr><td colspan="3">Jumla (zilizoidhinishwa)</td><td class="num">${tsh(jumla)}</td><td colspan="2"></td></tr></tfoot>` : ''}
+  </table></div>`;
+}
+function csvMikopo() {
+  pakuaCSV('mikopo', ['Kikundi', 'Namba ya Usajili', 'Aina', 'Idadi ya Wanachama', 'Tarehe ya Kuchukua', 'Kiasi', 'Tarehe ya Kuanza Kulipa', 'Muda (Miezi)', 'Hali', 'Imewasilishwa na', 'Idhini na', 'Sababu ya Kukataa'],
+    mikopoIliyochujwa().map(m => [m.k.jina, m.k.namba_ya_usajili, m.k.aina?.jina, m.k.idadi_ya_wanachama, tarehe(m.tarehe_ya_kuchukua), m.kiasi, tarehe(m.tarehe_ya_kuanza_kulipa), m.muda_wa_marejesho_miezi, haliMkopo(m).t,
+      jinaLa(m.created_by), m.idhinishwa_na ? jinaLa(m.idhinishwa_na) : '', m.sababu_ya_kukataa]));
+}
+
+/* ===================== USIMAMIZI (Mkuu tu) ===================== */
+function renderUsimamizi() {
+  if (!isMkuu()) return go('dashibodi');
+  const wanaosubiri = watumiaji.filter(w => !w.ameidhinishwa).length;
+  $('main').innerHTML = `
+    <h2>Watumiaji ${wanaosubiri ? `<span class="badge b-warn">${wanaosubiri} wanasubiri idhini</span>` : ''}</h2>
+    <div class="card tbl"><table>
+      <thead><tr><th>Jina</th><th class="hide-sm">Barua Pepe / Simu</th><th>Jukumu</th><th>Ameidhinishwa</th><th></th></tr></thead>
+      <tbody>${watumiaji.map(w => {
+        const mimi = w.id === me.id;
+        return `<tr>
+          <td><b>${esc(w.jina_kamili || '—')}</b>${mimi ? ' <span class="badge b-info">Wewe</span>' : ''}</td>
+          <td class="hide-sm">${esc(w.email || '')}<br><small class="note">${esc(w.simu || '')}</small></td>
+          <td><select id="j_${w.id}" ${mimi ? 'disabled' : ''}>
+            ${Object.entries(MAJUKUMU).map(([k, l]) => `<option value="${k}" ${k === w.jukumu ? 'selected' : ''}>${l}</option>`).join('')}
+          </select></td>
+          <td><input type="checkbox" id="a_${w.id}" style="width:auto" ${w.ameidhinishwa ? 'checked' : ''} ${mimi ? 'disabled' : ''}></td>
+          <td>${mimi ? '' : `<button class="btn sm" onclick="hifadhiMtumiaji('${w.id}',this)">Hifadhi</button>`}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>
+    <p class="note">Ondoa alama ya "Ameidhinishwa" kumsitisha mtumiaji asiingie kwenye mfumo.</p>
+
+    <h3>Ongeza Mtumiaji</h3>
+    <div class="card" style="padding:14px">
+      <form onsubmit="ongezaMtumiaji(event)">
+        <div class="grid">
+          <div><label class="req">Jina Kamili</label><input name="jina" required></div>
+          <div><label class="req">Barua Pepe</label><input name="email" type="email" required></div>
+          <div><label>Namba ya Simu</label><input name="simu" placeholder="07XXXXXXXX"></div>
+          <div><label class="req">Jukumu</label><select name="jukumu" required>
+            ${Object.entries(MAJUKUMU).map(([k, l]) => `<option value="${k}" ${k === 'afisa_maendeleo' ? 'selected' : ''}>${l}</option>`).join('')}
+          </select></div>
+          <div><label class="req">Nenosiri la Kuanzia</label><input name="nenosiri" type="text" minlength="8" required autocomplete="off"></div>
+        </div>
+        <p class="note">Mpe mtumiaji barua pepe na nenosiri hili; atalibadilisha kupitia "Badili Nenosiri" baada ya kuingia.</p>
+        <div class="actions" style="margin-top:8px"><button class="btn">Unda Akaunti</button></div>
+      </form>
+    </div>
+
+    <h3>Aina za Vikundi</h3>
+    <div class="card" style="padding:14px">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        ${aina.map(a => `<span class="badge b-ok" style="font-size:13px">${esc(a.jina)} · ${vikundi.filter(k => k.aina_id === a.id).length}</span>`).join('')}
+      </div>
+      <form class="toolbar" style="margin:0" onsubmit="ongezaAina(event)">
+        <input name="jina" placeholder="Aina mpya, mfano: Ushonaji" required>
+        <button class="btn">Ongeza Aina</button>
+      </form>
+    </div>`;
+}
+async function hifadhiMtumiaji(id, btn) {
+  busy(btn, true);
+  const { error } = await sb.from('mj_watumiaji').update({ jukumu: $('j_' + id).value, ameidhinishwa: $('a_' + id).checked }).eq('id', id);
+  busy(btn, false);
+  if (error) return toast(kosa(error), 1);
+  toast('Mtumiaji amesasishwa'); await loadAll(); renderUsimamizi();
+}
+async function ongezaMtumiaji(e) {
+  e.preventDefault();
+  const d = soma(e.target), btn = e.submitter;
+  busy(btn, true);
+  const { data, error } = await sb.rpc('mj_unda_mtumiaji', {
+    p_email: d.email, p_nenosiri: d.nenosiri, p_jina: d.jina, p_jukumu: d.jukumu, p_simu: d.simu
+  });
+  busy(btn, false);
+  if (error) return toast(kosa(error), 1);
+  toast(data?.alikuwepo
+    ? 'Barua pepe hii tayari ina akaunti — imepewa ruhusa ya mfumo huu. Ataingia kwa nenosiri lake la zamani.'
+    : 'Akaunti imeundwa. Mpe mtumiaji barua pepe na nenosiri.');
+  await loadAll(); renderUsimamizi();
+}
+async function ongezaAina(e) {
+  e.preventDefault();
+  const jina = e.target.jina.value.trim();
+  const { error } = await sb.from('mj_aina').insert({ jina });
+  if (error) return toast(error.code === '23505' ? 'Aina hii tayari ipo.' : kosa(error), 1);
+  toast('Aina imeongezwa'); await loadAll(); renderUsimamizi();
+}
+
+/* ===================== MODAL ===================== */
+function openModal(html) { $('modalBody').innerHTML = html; $('modal').hidden = false; document.body.style.overflow = 'hidden'; }
+function closeModal() { $('modal').hidden = true; openKikundiId = null; document.body.style.overflow = ''; }
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('modal').hidden) closeModal(); });
+
+init().catch(e => kosaLaMfumo('Imeshindwa kuwasiliana na Supabase: ' + esc(e.message)));
+</script>
+</body>
+</html>
